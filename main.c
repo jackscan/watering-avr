@@ -101,6 +101,9 @@ static uint16_t measure_cap(void) {
 
     uint16_t data[CAP_MEASURE_COUNT] = {};
 
+    // disable power reduction for timer 1
+    PRR &= ~(1 << PRTIM1);
+
     for (int i = 0; i < CAP_MEASURE_COUNT; ++i) {
         // charge capacitor to ground
 
@@ -158,8 +161,8 @@ static uint16_t measure_cap(void) {
     CAPLOAD_DDR |= CAPLOAD_BIT;
     CAPLOAD_PORT &= ~CAPLOAD_BIT;
 
-    // restart timer
-    timer_start();
+    // reenable power reduction for timer 1
+    PRR |= (1 << PRTIM1);
 
     // printf("t:");
     for (int i = 0; i < CAP_MEASURE_COUNT; ++i) {
