@@ -16,6 +16,7 @@
 
 #include <util/delay.h>
 
+#include <stdlib.h>
 #include <stdio.h>
 
 #define MOIST_DDR DDRC
@@ -94,6 +95,10 @@ ISR(ADC_vect) {
     }
 }
 
+static int uint16compare(const void *a, const void *b)
+{
+    return (int)(*(uint16_t*)a - *(uint16_t*)b);
+}
 
 static uint16_t measure_cap(void) {
 
@@ -172,57 +177,30 @@ static uint16_t measure_cap(void) {
     PRR |= (1 << PRTIM1);
 
     // printf("t:");
-    for (int i = 0; i < CAP_MEASURE_COUNT; ++i) {
-        // printf(" %u", data[i]);
-    }
+    // for (int i = 0; i < CAP_MEASURE_COUNT; ++i) {
+    //     printf(" %u", data[i]);
+    // }
+
+    // qsort()
 
     uint16_t sum = 0;
-    uint16_t m = CAP_MEASURE_COUNT/3;
-    uint16_t min[CAP_MEASURE_COUNT/3];
-    uint16_t max[CAP_MEASURE_COUNT/3];
+    uint16_t m = CAP_MEASURE_COUNT/4;
 
-    for (int i = 0; i < m; ++i) {
-        min[i] = 0xffff;
-        max[i] = 0;
+    qsort(data, CAP_MEASURE_COUNT, sizeof(data[0]), uint16compare);
+    // printf("t:");
+    // for (int i = 0; i < CAP_MEASURE_COUNT; ++i) {
+    //     printf(" %u", data[i]);
+    // }
+
+    for (int i = m; i < CAP_MEASURE_COUNT - m; ++i) {
+        sum += data[i];
     }
 
-    for (int i = 0; i < CAP_MEASURE_COUNT; ++i) {
-        uint16_t v = data[i];
-        sum += v;
-
-        // find biggest low value
-        int minj = 0;
-        for (int j = 1; j < m; ++j)
-            if (min[minj] < min[j]) {
-                minj = j;
-            }
-
-        // find smallest high value
-        int maxj = 0;
-        for (int j = 1; j < m; ++j)
-            if (max[maxj] > max[j]) {
-                maxj = j;
-            }
-
-        if (min[minj] > v) min[minj] = v;
-        if (max[maxj] < v) max[maxj] = v;
-    }
-
-    // printf("\nmin:");
-    for (int i = 0; i < m; ++i) {
-        sum -= min[i];
-        // printf(" %u", min[i]);
-    }
-
-    // printf("\nmax:");
-    for (int i = 0; i < m; ++i) {
-        sum -= max[i];
-        // printf(" %u", max[i]);
-    }
-
-    // uint16_t gain = 2;
     uint16_t c = (CAP_MEASURE_COUNT - 2*m);
     uint16_t r = (sum + c / 2) / c;
+
+    // uint32_t calcEnd = get_time();
+    // printf("calcDur: %lu\n", calcEnd - end);
 
     // printf("\n -> %u (%u)\n", r, sum);
 
