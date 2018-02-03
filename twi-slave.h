@@ -19,4 +19,4 @@ uint8_t twi_get_watering(void);
 void twi_set_last_watering(uint8_t);
 void twi_add_moisture(uint16_t value);
 uint32_t twi_get_moisture(void);
-void twi_set_water_level(uint16_t value);
+void twi_add_water_level(uint16_t value);

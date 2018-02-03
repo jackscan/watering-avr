@@ -42,7 +42,7 @@ static struct {
     uint8_t ptr;
     uint8_t cmd;
     struct accu moisture;
-    uint16_t water_level;
+    struct accu water_level;
     uint8_t last_watering;
     uint8_t watering;
     uint8_t state;
@@ -115,9 +115,9 @@ void twi_add_moisture(uint16_t value) {
     add_accu(&s_twi.moisture, value);
 }
 
-void twi_set_water_level(uint16_t value) {
+void twi_add_water_level(uint16_t value) {
     LOCKI();
-    s_twi.water_level = value;
+    add_accu(&s_twi.water_level, value);
     UNLOCKI();
 }
 
@@ -206,7 +206,7 @@ static void fill_buffer(void) {
         load_accu(&s_twi.moisture, 1);
         break;
     case CMD_GET_WATER_LEVEL:
-        load_uint16(s_twi.water_level);
+        load_accu(&s_twi.water_level, 1);
         break;
     case CMD_WATERING:
     case CMD_GET_LAST_WATERING:
@@ -231,7 +231,7 @@ static void handle_cmd(void) {
             reset_accu(&s_twi.moisture);
             break;
         case CMD_GET_WATER_LEVEL:
-            s_twi.water_level = 0xFFFF;
+            reset_accu(&s_twi.water_level);
             break;
         case CMD_WATERING:
             s_twi.last_watering = 0;

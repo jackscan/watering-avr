@@ -207,6 +207,13 @@ static uint16_t measure_cap(void) {
     return r;
 }
 
+static void measure_water_level(void) {
+    do {
+        twi_add_water_level(measure_cap());
+        printf(".");
+    } while (twi_get_cmd() == CMD_GET_WATER_LEVEL);
+}
+
 static void start_moisture_measure(void) {
     // power sensor
     // MOISTVCC_PORT |= MOISTVCC_BIT;
@@ -400,7 +407,7 @@ int main(void) {
                 measure_moisture();
                 break;
             case CMD_GET_WATER_LEVEL:
-                twi_set_water_level(measure_cap());
+                measure_water_level();
                 break;
             case CMD_WATERING:
                 twi_set_last_watering(water(twi_get_watering()));
