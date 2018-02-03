@@ -97,24 +97,30 @@ ISR(ADC_vect) {
 
 static uint16_t measure_cap(void) {
 
-#define CAP_MEASURE_COUNT 195
+#define CAP_MEASURE_COUNT 256
+    // charge capacitor to ground
+    CAPSENS_DDR |= CAPSENS_BIT;
+    CAPSENS_PORT &= ~CAPSENS_BIT;
+    CAPLOAD_DDR |= CAPLOAD_BIT;
+    CAPLOAD_PORT &= ~CAPLOAD_BIT;
 
     uint16_t data[CAP_MEASURE_COUNT] = {};
 
     // disable power reduction for timer 1
     PRR &= ~(1 << PRTIM1);
+    // no interrupts
+    TIMSK1 = 0;
+    uint8_t clp = CAPLOAD_PORT | CAPLOAD_BIT;
+    // input capture noise canceler and input capture enabled and prescale 1
+    uint8_t tccr1b = (1 << ICNC1) | (1 << ICES1) | (1 << CS10);
+
+    uint32_t dt = 50 * CAP_MEASURE_COUNT;
+    OCR1A = (F_CPU + dt / 2) / dt;
+
+    // printf("measure %u * %u\n", CAP_MEASURE_COUNT, OCR1A);
+    // uint32_t start = get_time();
 
     for (int i = 0; i < CAP_MEASURE_COUNT; ++i) {
-        // charge capacitor to ground
-
-        CAPSENS_DDR |= CAPSENS_BIT;
-        CAPSENS_PORT &= ~CAPSENS_BIT;
-
-        CAPLOAD_DDR |= CAPLOAD_BIT;
-        CAPLOAD_PORT &= ~CAPLOAD_BIT;
-
-        // _delay_ms(1);
-
         // set as input
         CAPSENS_DDR &= ~CAPSENS_BIT;
 
@@ -123,43 +129,44 @@ static uint16_t measure_cap(void) {
         // stop timer
         TCCR1B = 0;
         TCNT1 = 0;
-
-        // no interrupts
-        TIMSK1 = 0;
-        // uint8_t clp0 = CAPLOAD_PORT & ~CAPLOAD_BIT;
-        uint8_t clp1 = CAPLOAD_PORT | CAPLOAD_BIT;
-        // input capture noise canceler and input capture enabled and prescale 1
-        // uint8_t tccr1b0 = (1 << ICNC1) | (0 << ICES1) | (1 << CS10);
-        uint8_t tccr1b1 = (1 << ICNC1) | (1 << ICES1) | (1 << CS10);
         ICR1 = 0;
-        // clear input capture flag
-        TIFR1 = (1 << ICF1);
+        // clear input capture flag and output compare flag
+        TIFR1 = (1 << ICF1) | (1 << OCF1A);
         uint8_t sreg = SREG;
         cli();
         // start timer
-        TCCR1B = tccr1b1;
+        TCCR1B = tccr1b;
         // load capacitor to high
-        CAPLOAD_PORT = clp1;
+        CAPLOAD_PORT = clp;
         // wait for input capture
         while ((TIFR1 & (1 << ICF1)) == 0)
             ;
 
         uint16_t t = ICR1;
 
+        // charge capacitor to ground
+        CAPLOAD_PORT &= ~CAPLOAD_BIT;
+        CAPSENS_PORT &= ~CAPSENS_BIT;
+        CAPSENS_DDR |= CAPSENS_BIT;
+
         // restore SREG
         SREG = sreg;
 
         data[i] = t;
 
-        // TODO: adapt to actual t
-        _delay_us(190);
+        // wait for output compare match
+        while ((TIFR1 & (1 << OCF1A)) == 0)
+            ;
     }
 
+    // uint32_t end = get_time();
+    // printf("duration: %lu\n", end - start);
+
     // reset pins
-    CAPSENS_DDR |= CAPSENS_BIT;
     CAPSENS_PORT &= ~CAPSENS_BIT;
-    CAPLOAD_DDR |= CAPLOAD_BIT;
+    CAPSENS_DDR |= CAPSENS_BIT;
     CAPLOAD_PORT &= ~CAPLOAD_BIT;
+    CAPLOAD_DDR |= CAPLOAD_BIT;
 
     // reenable power reduction for timer 1
     PRR |= (1 << PRTIM1);
