@@ -23,7 +23,7 @@ static volatile struct {
 ISR(USART_RX_vect) {
     uint8_t next = (s_dbg.tail + 1) & DBGBUFMASK;
     if (s_dbg.head != next) {
-        s_dbg.inbuf[next] = UDR0;
+        s_dbg.inbuf[s_dbg.tail] = UDR0;
         s_dbg.tail = next;
     }
 }
