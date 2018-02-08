@@ -51,6 +51,7 @@ static struct {
 
 static struct {
     uint8_t trace[STATE_TRACE_LEN];
+    uint8_t tdata[STATE_TRACE_LEN];
     uint8_t head, tail;
     uint8_t lost;
 } s_twi_dbg;
@@ -157,7 +158,8 @@ void twi_dump_trace(void) {
     UNLOCKI();
 
     for (; i != end; i = ((i + 1) & STATE_TRACE_MASK)) {
-        printf("%s\n", status_to_str(s_twi_dbg.trace[i]));
+        printf("%s, %#x\n", status_to_str(s_twi_dbg.trace[i]),
+               s_twi_dbg.tdata[i]);
     }
 
     RELOCKI();
@@ -253,16 +255,7 @@ ISR(TWI_vect) {
     static uint8_t buf_idx;
 
     uint8_t status = TW_STATUS;
-
-    {
-        uint8_t next = (s_twi_dbg.tail + 1) & STATE_TRACE_MASK;
-        if (next != s_twi_dbg.head) {
-            s_twi_dbg.trace[s_twi_dbg.tail] = status;
-            s_twi_dbg.tail = next;
-        } else {
-            if (s_twi_dbg.lost < 255) ++s_twi_dbg.lost;
-        }
-    }
+    uint8_t data = TWDR;
 
     switch (status) {
     case TW_ST_SLA_ACK:  // Own SLA+R has been received; ACK has been returned
@@ -272,7 +265,8 @@ ISR(TWI_vect) {
     case TW_ST_DATA_ACK: // Data byte in TWDR has been transmitted; ACK has been
                          // received
         CHECKPOINT;
-        TWDR = s_twi.buf[buf_idx++];
+        data = s_twi.buf[buf_idx++];
+        TWDR = data;
         TWCR = TW_RESPONSE(buf_idx < s_twi.buflen);
         twi_set_busy();
         break;
@@ -288,14 +282,14 @@ ISR(TWI_vect) {
     case TW_SR_DATA_ACK: // Previously addressed with own SLA+W; data has been
                          // received; ACK has been returned
         CHECKPOINT;
-        s_twi.buf[buf_idx++] = TWDR;
+        s_twi.buf[buf_idx++] = data;
         TWCR = TW_RESPONSE(buf_idx + 1 < BUFFER_SIZE);
         twi_set_busy();
         break;
 
     case TW_SR_DATA_NACK:      // Previously addressed with own SLA+W; data has been received; NOT ACK has been returned
         CHECKPOINT;
-        s_twi.buf[buf_idx++] = TWDR;
+        s_twi.buf[buf_idx++] = data;
     case TW_SR_STOP:       // A STOP condition or repeated START condition has been received while still addressed as Slave
         CHECKPOINT;
         s_twi.buflen = buf_idx;
@@ -335,5 +329,17 @@ ISR(TWI_vect) {
         twi_reset_busy();
         break;
     }
+
+    {
+        uint8_t next = (s_twi_dbg.tail + 1) & STATE_TRACE_MASK;
+        if (next != s_twi_dbg.head) {
+            s_twi_dbg.trace[s_twi_dbg.tail] = status;
+            s_twi_dbg.tdata[s_twi_dbg.tail] = data;
+            s_twi_dbg.tail = next;
+        } else {
+            if (s_twi_dbg.lost < 255) ++s_twi_dbg.lost;
+        }
+    }
+
     CHECKPOINT;
 }
