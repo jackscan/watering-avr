@@ -196,7 +196,8 @@ static uint16_t measure_cap(void) {
         sum += data[i];
     }
 
-    uint16_t c = (CAP_MEASURE_COUNT - 2*m);
+    uint16_t gain = 2;
+    uint16_t c = (CAP_MEASURE_COUNT - 2*m) / gain;
     uint16_t r = (sum + c / 2) / c;
 
     // uint32_t calcEnd = get_time();
