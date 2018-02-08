@@ -275,7 +275,7 @@ static void measure_moisture(void) {
 
     uint32_t m = twi_get_moisture();
     uint16_t n = (uint16_t)(m >> 16);
-    uint16_t d = (uint16_t)(((m & 0xFFFF) + 8) / 16);
+    uint16_t d = (uint16_t)(m & 0xFFFF);
     printf("moisture: %u / %u = %u\n", n, d, (n + d / 2) / d);
 }
 
