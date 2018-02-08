@@ -66,7 +66,7 @@ char debug_getchar(void) {
     while (!debug_char_pending())
         ;
     char c = s_dbg.inbuf[s_dbg.head];
-    ++s_dbg.head;
+    s_dbg.head = (s_dbg.head + 1) & DBGBUFMASK;
     return c;
 }
 
