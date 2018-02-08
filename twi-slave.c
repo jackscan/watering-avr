@@ -13,6 +13,7 @@
 #include <stdbool.h>
 
 #define LOCKI() uint8_t sreg = SREG; cli()
+#define RELOCKI() sreg = SREG; cli()
 #define UNLOCKI() SREG = sreg
 
 #define BUFFER_SIZE 3
@@ -152,13 +153,16 @@ void twi_dump_trace(void) {
     uint8_t i = s_twi_dbg.head;
     uint8_t end = s_twi_dbg.tail;
     uint8_t s = s_twi_dbg.lost;
-    s_twi_dbg.head = end;
     s_twi_dbg.lost = 0;
     UNLOCKI();
 
     for (; i != end; i = ((i + 1) & STATE_TRACE_MASK)) {
         printf("%s\n", status_to_str(s_twi_dbg.trace[i]));
     }
+
+    RELOCKI();
+    s_twi_dbg.head = end;
+    UNLOCKI();
 
     switch (s) {
     case 0:
