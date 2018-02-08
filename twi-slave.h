@@ -7,6 +7,7 @@
 #define CMD_GET_WATER_LEVEL 0x11
 #define CMD_GET_LAST_WATERING 0x12
 #define CMD_GET_WATER_LIMIT 0x13
+#define CMD_ECHO 0x14
 #define CMD_WATERING 0x5A
 
 void twi_slave_init(uint8_t addr);

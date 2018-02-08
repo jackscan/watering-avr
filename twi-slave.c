@@ -16,9 +16,7 @@
 #define RELOCKI() sreg = SREG; cli()
 #define UNLOCKI() SREG = sreg
 
-#define BUFFER_SIZE 3
-#define CMD_BUFFER_SIZE 4
-#define CMD_BUFFER_MASK (CMD_BUFFER_SIZE-1)
+#define BUFFER_SIZE 4
 
 #define STATE_TRACE_LEN 16
 #define STATE_TRACE_MASK  (STATE_TRACE_LEN-1)
@@ -222,6 +220,8 @@ static void fill_buffer(void) {
     case CMD_GET_WATER_LIMIT:
         s_twi.buf[0] = water_limit(MAX_WATER_TIME);
         s_twi.buflen = 1;
+    case CMD_ECHO:
+        break;
     }
 
     reset_cmd();
@@ -246,6 +246,8 @@ static void handle_cmd(void) {
             } else {
                 reset_cmd();
             }
+            break;
+        case CMD_ECHO:
             break;
         }
     }
