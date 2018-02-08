@@ -267,6 +267,7 @@ ISR(TWI_vect) {
         CHECKPOINT;
         data = s_twi.buf[buf_idx++];
         TWDR = data;
+        __asm__ __volatile__("nop");
         TWCR = TW_RESPONSE(buf_idx < s_twi.buflen);
         twi_set_busy();
         break;
