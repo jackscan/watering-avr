@@ -183,8 +183,8 @@ static uint16_t measure_cap(void) {
 
     // qsort()
 
-    uint16_t sum = 0;
-    uint16_t m = CAP_MEASURE_COUNT/4;
+    uint32_t sum = 0;
+    uint32_t m = CAP_MEASURE_COUNT/4;
 
     qsort(data, CAP_MEASURE_COUNT, sizeof(data[0]), uint16compare);
     // printf("t:");
@@ -196,9 +196,9 @@ static uint16_t measure_cap(void) {
         sum += data[i];
     }
 
-    uint16_t gain = 2;
-    uint16_t c = (CAP_MEASURE_COUNT - 2*m) / gain;
-    uint16_t r = (sum + c / 2) / c;
+    uint32_t gain = 2;
+    uint32_t c = (CAP_MEASURE_COUNT - 2*m) / gain;
+    uint16_t r = (uint32_t)((sum + c / 2) / c);
 
     // uint32_t calcEnd = get_time();
     // printf("calcDur: %lu\n", calcEnd - end);
