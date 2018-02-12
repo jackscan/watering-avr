@@ -22,24 +22,24 @@
 #define MOIST_DDR DDRC
 // #define MOIST_PIN PINC
 #define MOIST_PORT PORTC
-#define MOIST_BIT (1 << PC3)
-#define MOIST_MUX ((1 << MUX1) | (1 << MUX0)) // ADC3
+#define MOIST_BIT (1 << PC0)
+#define MOIST_MUX (0) // ADC0
 
-// #define MOISTVCC_DDR DDRC
-// #define MOISTVCC_PORT PORTC
-// #define MOISTVCC_BIT (1 << PC2)
+#define MOISTVCC_DDR DDRB
+#define MOISTVCC_PORT PORTB
+#define MOISTVCC_BIT (1 << PB2)
 
 #define CAPLOAD_DDR DDRD
 #define CAPLOAD_PORT PORTD
-#define CAPLOAD_BIT (1 << PD3)
+#define CAPLOAD_BIT (1 << PD4)
 
 #define CAPSENS_DDR DDRB
 #define CAPSENS_PORT PORTB
 #define CAPSENS_BIT (1 << PB0)
 
-#define WATERING_DDR DDRB
-#define WATERING_PORT PORTB
-#define WATERING_BIT (1 << PB2)
+#define WATERING_DDR DDRD
+#define WATERING_PORT PORTD
+#define WATERING_BIT (1 << PD3)
 
 // #define MOIST_DDR DDRC
 // #define MOIST_PIN PINC
@@ -81,6 +81,10 @@ static uint8_t early_init(void) {
     // set moisture signal pin to Hi-Z
     MOIST_PORT &= ~MOIST_BIT;
     MOIST_DDR &= ~MOIST_BIT;
+
+    // power moisture sensor
+    MOISTVCC_DDR |= MOISTVCC_BIT;
+    MOISTVCC_PORT |= MOISTVCC_BIT;
 
     return mcusr;
 }
