@@ -137,8 +137,6 @@ static uint16_t measure_cap(void) {
         ICR1 = 0;
         // clear input capture flag and output compare flag
         TIFR1 = (1 << ICF1) | (1 << OCF1A);
-        uint8_t sreg = SREG;
-        cli();
         // start timer
         TCCR1B = tccr1b;
         // load capacitor to high
@@ -155,7 +153,6 @@ static uint16_t measure_cap(void) {
         CAPSENS_DDR |= CAPSENS_BIT;
 
         // restore SREG
-        SREG = sreg;
 
         data[i] = t;
 
