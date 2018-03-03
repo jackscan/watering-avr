@@ -21,8 +21,8 @@ DEVICE     = atmega328p
 BOARD      = BOARD_PROMINI
 CLOCK      = 8000000
 #PROGRAMMER = #-c stk500v2 -P avrdoper
-OBJECTS    = main.o twi-slave.o debug.o timer.o
-HEADER     = twi-slave.h debug.h timer.h water.h
+OBJECTS    = main.o twi-slave.o debug.o timer.o hx711.o
+HEADER     = twi-slave.h debug.h timer.h water.h hx711.h
 #SRCS       = main.c
 #FUSES      = -U hfuse:w:0xd9:m -U lfuse:w:0x24:m
 
