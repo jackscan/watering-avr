@@ -92,13 +92,18 @@ static const char *status_to_str(uint8_t status) {
 static void add_accu(struct accu* a, uint16_t v) {
     uint32_t sum = (uint32_t)a->numerator + (uint32_t)v;
 
-    if (sum > 0xFFFF || a->denominator >= 0xFFFF) {
-        sum = (uint32_t)(a->numerator / 2) + v;
-        a->denominator /= 2;
+    if (sum > 0xFFFF || a->denominator >= 0xFFFE) {
+        if (a->denominator & 1) {
+            a->numerator = (uint16_t)((sum) / 2);
+            a->denominator = (a->denominator + 1) / 2;
+        } else {
+            a->numerator = a->numerator / 2 + v;
+            a->denominator = a->denominator / 2 + 1;
+        }
+    } else {
+        a->numerator = (uint16_t)sum;
+        ++a->denominator;
     }
-
-    a->numerator = (uint16_t)sum;
-    ++a->denominator;
 }
 
 uint8_t twi_get_watering(void){
