@@ -14,6 +14,7 @@ void twi_slave_init(uint8_t addr);
 bool twi_busy(void);
 bool twi_cmd_pending(void);
 uint8_t twi_get_cmd(void);
+uint8_t twi_next_cmd(void);
 void twi_dump_trace(void);
 
 uint8_t twi_get_watering(void);

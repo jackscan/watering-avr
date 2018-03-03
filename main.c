@@ -402,7 +402,7 @@ int main(void) {
         twi_dump_trace();
         if (twi_cmd_pending()) {
             CHECKPOINT;
-            uint8_t cmd = twi_get_cmd();
+            uint8_t cmd = twi_next_cmd();
             printf("command: %#x\n", cmd);
             switch (cmd) {
             case CMD_GET_MOISTURE:

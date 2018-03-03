@@ -139,6 +139,10 @@ bool twi_cmd_pending(void) {
 }
 
 uint8_t twi_get_cmd(void) {
+    return s_twi.cmd;
+}
+
+uint8_t twi_next_cmd(void) {
     LOCKI();
     uint8_t cmd = s_twi.cmd;
     s_twi.state &= ~(TWI_STATE_CMD_PENDING);
