@@ -8,6 +8,7 @@
 #include "timer.h"
 #include "twi-slave.h"
 #include "water.h"
+#include "hx711.h"
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
@@ -75,9 +76,6 @@ static uint8_t early_init(void) {
     PORTC = 0;
     PORTD = 0;
 
-    // disable all peripheral clocks
-    PRR = 0xFF;
-
     // set moisture signal pin to Hi-Z
     MOIST_PORT &= ~MOIST_BIT;
     MOIST_DDR &= ~MOIST_BIT;
@@ -85,6 +83,11 @@ static uint8_t early_init(void) {
     // power moisture sensor
     MOISTVCC_DDR |= MOISTVCC_BIT;
     MOISTVCC_PORT |= MOISTVCC_BIT;
+
+    hx711_init();
+
+    // disable all peripheral clocks
+    PRR = 0xFF;
 
     return mcusr;
 }
@@ -312,6 +315,33 @@ static void measure_moisture_2(void) {
     // MOISTVCC_PORT &= ~MOISTVCC_BIT;
 }
 
+static void measure_weight(void) {
+    uint32_t t0 = get_time();
+
+    while (twi_get_cmd() == CMD_GET_WEIGHT &&
+           get_time() - t0 < TIMER_MS(1000)) {
+        twi_add_weight(hx711_read());
+    }
+
+    uint32_t t1 = get_time();
+
+    hx711_powerdown();
+
+    printf("weight measuring: %lu - %lu = %lu\n", t1, t0, t1 - t0);
+
+    uint32_t w = twi_get_weight();
+    uint32_t n = (w >> 16);
+    uint32_t d = (w & 0xFFFF);
+    printf("weight: %u / %u = %u\n", (uint16_t)n, (uint16_t)d, (uint16_t)((n + d / 2) / d));
+}
+
+static void measure_weight_2(void) {
+    for (uint8_t i = 0; i < 10; ++i) {
+        printf("%u\n", hx711_read());
+    }
+    hx711_powerdown();
+}
+
 static __attribute__ ((section (".noinit"))) struct {
     uint32_t balance;
     uint32_t last;
@@ -411,6 +441,9 @@ int main(void) {
             case CMD_GET_WATER_LEVEL:
                 measure_water_level();
                 break;
+            case CMD_GET_WEIGHT:
+                measure_weight();
+                break;
             case CMD_WATERING:
                 twi_set_last_watering(water(twi_get_watering()));
                 break;
@@ -424,6 +457,7 @@ int main(void) {
             case 't': measure_timer(); break;
             case 'm': measure_moisture_2(); break;
             case 'c': measure_cap(); break;
+            case 'w': measure_weight_2(); break;
             }
         }
     }
