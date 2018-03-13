@@ -9,6 +9,7 @@
 #include "twi-slave.h"
 #include "water.h"
 #include "hx711.h"
+#include "freqcounter.h"
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
@@ -70,7 +71,7 @@ static uint8_t early_init(void) {
     // set pins to output
     DDRB = (1 << DDB0) | (1 << DDB1) | (1 << DDB2) | (1 << DDB3) | (1 << DDB4) | (1 << DDB5);
     DDRC = (1 << DDC0) | (1 << DDC1) | (1 << DDC2) | (1 << DDC3);
-    DDRD = (1 << DDD2) | (1 << DDD3) | (1 << DDD4) | (1 << DDD5) | (1 << DDD6) | (1 << DDD7);
+    DDRD = (1 << DDD2) | (1 << DDD3) | (1 << DDD6) | (1 << DDD7);
     // drive pins low
     PORTB = 0;
     PORTC = 0;
@@ -102,121 +103,32 @@ ISR(ADC_vect) {
     }
 }
 
-static int uint16compare(const void *a, const void *b)
-{
-    return (int)(*(uint16_t*)a - *(uint16_t*)b);
-}
-
-static uint16_t measure_cap(void) {
-
-#define CAP_MEASURE_COUNT 256
-    // charge capacitor to ground
-    CAPSENS_DDR |= CAPSENS_BIT;
-    CAPSENS_PORT &= ~CAPSENS_BIT;
-    CAPLOAD_DDR |= CAPLOAD_BIT;
-    CAPLOAD_PORT &= ~CAPLOAD_BIT;
-
-    uint16_t data[CAP_MEASURE_COUNT] = {};
-
-    // disable power reduction for timer 1
-    PRR &= ~(1 << PRTIM1);
-    // no interrupts
-    TIMSK1 = 0;
-    uint8_t clp = CAPLOAD_PORT | CAPLOAD_BIT;
-    // input capture noise canceler and input capture enabled and prescale 1
-    uint8_t tccr1b = (1 << ICNC1) | (1 << ICES1) | (1 << CS10);
-
-    uint32_t dt = 50 * CAP_MEASURE_COUNT;
-    OCR1A = (F_CPU + dt / 2) / dt;
-
-    // printf("measure %u * %u\n", CAP_MEASURE_COUNT, OCR1A);
-    // uint32_t start = get_time();
-
-    for (int i = 0; i < CAP_MEASURE_COUNT; ++i) {
-        // set as input
-        CAPSENS_DDR &= ~CAPSENS_BIT;
-
-        // resetup timer 1
-
-        // stop timer
-        TCCR1B = 0;
-        TCNT1 = 0;
-        ICR1 = 0;
-        // clear input capture flag and output compare flag
-        TIFR1 = (1 << ICF1) | (1 << OCF1A);
-        // start timer
-        TCCR1B = tccr1b;
-        // load capacitor to high
-        CAPLOAD_PORT = clp;
-        // wait for input capture
-        while ((TIFR1 & (1 << ICF1)) == 0)
-            ;
-
-        uint16_t t = ICR1;
-
-        // charge capacitor to ground
-        CAPLOAD_PORT &= ~CAPLOAD_BIT;
-        CAPSENS_PORT &= ~CAPSENS_BIT;
-        CAPSENS_DDR |= CAPSENS_BIT;
-
-        // restore SREG
-
-        data[i] = t;
-
-        // wait for output compare match
-        while ((TIFR1 & (1 << OCF1A)) == 0)
-            ;
-    }
-
-    // uint32_t end = get_time();
-    // printf("duration: %lu\n", end - start);
-
-    // reset pins
-    CAPSENS_PORT &= ~CAPSENS_BIT;
-    CAPSENS_DDR |= CAPSENS_BIT;
-    CAPLOAD_PORT &= ~CAPLOAD_BIT;
-    CAPLOAD_DDR |= CAPLOAD_BIT;
-
-    // reenable power reduction for timer 1
-    PRR |= (1 << PRTIM1);
-
-    // printf("t:");
-    // for (int i = 0; i < CAP_MEASURE_COUNT; ++i) {
-    //     printf(" %u", data[i]);
-    // }
-
-    // qsort()
-
-    uint32_t sum = 0;
-    uint32_t m = CAP_MEASURE_COUNT/4;
-
-    qsort(data, CAP_MEASURE_COUNT, sizeof(data[0]), uint16compare);
-    // printf("t:");
-    // for (int i = 0; i < CAP_MEASURE_COUNT; ++i) {
-    //     printf(" %u", data[i]);
-    // }
-
-    for (int i = m; i < CAP_MEASURE_COUNT - m; ++i) {
-        sum += data[i];
-    }
-
-    uint32_t gain = 2;
-    uint32_t c = (CAP_MEASURE_COUNT - 2*m) / gain;
-    uint16_t r = (uint32_t)((sum + c / 2) / c);
-
-    // uint32_t calcEnd = get_time();
-    // printf("calcDur: %lu\n", calcEnd - end);
-
-    // printf("\n -> %u (%u)\n", r, sum);
-
-    return r;
-}
-
 static void measure_water_level(void) {
-    do {
-        twi_add_water_level(measure_cap());
-        printf(".");
-    } while (twi_get_cmd() == CMD_GET_WATER_LEVEL);
+    freqcounter_start();
+
+    uint32_t t0 = get_time();
+    while (twi_get_cmd() == CMD_GET_WATER_LEVEL &&
+           get_time() - t0 < TIMER_MS(10000)) {
+    }
+    freqcounter_stop();
+
+    uint32_t l = twi_get_water_level();
+    uint16_t n = (uint16_t)(l >> 16);
+    uint16_t d = (uint16_t)(l & 0xFFFF);
+    printf("level: %u / %u = %u\n", n, d, (n + d / 2) / d);
+}
+
+static void measure_water_level_2(void) {
+    twi_reset_water_level();
+    freqcounter_start();
+    _delay_ms(4000);
+    freqcounter_stop();
+
+    uint32_t l = twi_get_water_level();
+    uint16_t n = (uint16_t)(l >> 16);
+    uint16_t d = (uint16_t)(l & 0xFFFF);
+    printf("level: %u / %u = %u\n", n, d, (n + d / 2) / d);
+    twi_reset_water_level();
 }
 
 static void start_moisture_measure(void) {
@@ -417,6 +329,7 @@ int main(void) {
     debug_init_trace();
 
     timer_start();
+    freqcounter_start();
     twi_slave_init(0x10);
 
     if ((mcusr & (PORF | BORF)) != 0) {
@@ -456,8 +369,10 @@ int main(void) {
             switch (c) {
             case 't': measure_timer(); break;
             case 'm': measure_moisture_2(); break;
-            case 'c': measure_cap(); break;
             case 'w': measure_weight_2(); break;
+            case 'f':
+                measure_water_level_2(); break;
+                break;
             }
         }
     }

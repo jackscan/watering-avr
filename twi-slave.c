@@ -106,6 +106,11 @@ static void add_accu(struct accu* a, uint16_t v) {
     }
 }
 
+static void reset_accu(struct accu* a) {
+    a->numerator = 0;
+    a->denominator = 0;
+}
+
 uint8_t twi_get_watering(void){
     return s_twi.watering;
 }
@@ -133,9 +138,16 @@ uint32_t twi_get_weight(void) {
 }
 
 void twi_add_water_level(uint16_t value) {
-    LOCKI();
     add_accu(&s_twi.water_level, value);
-    UNLOCKI();
+}
+
+uint32_t twi_get_water_level(void) {
+    return ((uint32_t)s_twi.water_level.numerator << 16) |
+           (uint32_t)s_twi.water_level.denominator;
+}
+
+void twi_reset_water_level(void) {
+    reset_accu(&s_twi.water_level);
 }
 
 bool twi_busy(void) {
@@ -213,11 +225,6 @@ static void load_accu(struct accu *a, uint16_t amplify) {
         s_twi.buf[0] = 0xFF;
         s_twi.buflen = 0;
     }
-}
-
-static void reset_accu(struct accu* a) {
-    a->numerator = 0;
-    a->denominator = 0;
 }
 
 static void reset_cmd(void) {
