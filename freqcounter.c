@@ -30,7 +30,6 @@ void freqcounter_start(void) {
 
     // timer overflow interrupt disabled
     TIMSK0 = 0;
-    TIMSK1 = 0;
 
     stop_counter();
 
@@ -60,7 +59,6 @@ void freqcounter_start(void) {
     TIFR0 = (1 << TOV0);
     // timer overflow interrupt enabled
     TIMSK0 = (1 << TOIE0);
-    TIMSK1 = (1 << TOIE1);
     start_counter();
 }
 
