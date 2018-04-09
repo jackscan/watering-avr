@@ -42,7 +42,6 @@ static struct {
     uint8_t ptr;
     uint8_t cmd;
     struct accu moisture;
-    struct accu water_level;
     struct accu weight;
     uint8_t last_watering;
     uint8_t watering;
@@ -115,16 +114,8 @@ uint8_t twi_get_watering(void){
     return s_twi.watering;
 }
 
-uint32_t twi_get_moisture(void) {
-    return ((uint32_t)s_twi.moisture.numerator << 16) | (uint32_t)s_twi.moisture.denominator;
-}
-
 void twi_set_last_watering(uint8_t w){
     s_twi.last_watering = w;
-}
-
-void twi_add_moisture(uint16_t value) {
-    add_accu(&s_twi.moisture, value);
 }
 
 void twi_add_weight(uint16_t value) {
@@ -135,19 +126,6 @@ void twi_add_weight(uint16_t value) {
 
 uint32_t twi_get_weight(void) {
     return ((uint32_t)s_twi.weight.numerator << 16) | (uint32_t)s_twi.weight.denominator;
-}
-
-void twi_add_water_level(uint16_t value) {
-    add_accu(&s_twi.water_level, value);
-}
-
-uint32_t twi_get_water_level(void) {
-    return ((uint32_t)s_twi.water_level.numerator << 16) |
-           (uint32_t)s_twi.water_level.denominator;
-}
-
-void twi_reset_water_level(void) {
-    reset_accu(&s_twi.water_level);
 }
 
 bool twi_busy(void) {
@@ -234,12 +212,6 @@ static void reset_cmd(void) {
 
 static void fill_buffer(void) {
     switch (s_twi.cmd) {
-    case CMD_GET_MOISTURE:
-        load_accu(&s_twi.moisture, 1);
-        break;
-    case CMD_GET_WATER_LEVEL:
-        load_accu(&s_twi.water_level, 1);
-        break;
     case CMD_GET_WEIGHT:
         load_accu(&s_twi.weight, 1);
         break;
@@ -264,12 +236,6 @@ static void handle_cmd(void) {
         s_twi.state |= TWI_STATE_CMD_PENDING;
 
         switch (s_twi.cmd) {
-        case CMD_GET_MOISTURE:
-            reset_accu(&s_twi.moisture);
-            break;
-        case CMD_GET_WATER_LEVEL:
-            reset_accu(&s_twi.water_level);
-            break;
         case CMD_GET_WEIGHT:
             reset_accu(&s_twi.weight);
             break;

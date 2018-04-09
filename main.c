@@ -9,7 +9,6 @@
 #include "twi-slave.h"
 #include "water.h"
 #include "hx711.h"
-#include "freqcounter.h"
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
@@ -20,16 +19,6 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-
-#define MOIST_DDR DDRC
-// #define MOIST_PIN PINC
-#define MOIST_PORT PORTC
-#define MOIST_BIT (1 << PC0)
-#define MOIST_MUX (0) // ADC0
-
-#define MOISTVCC_DDR DDRB
-#define MOISTVCC_PORT PORTB
-#define MOISTVCC_BIT (1 << PB2)
 
 #define CAPLOAD_DDR DDRD
 #define CAPLOAD_PORT PORTD
@@ -43,10 +32,6 @@
 #define WATERING_PORT PORTD
 #define WATERING_BIT (1 << PD3)
 
-// #define MOIST_DDR DDRC
-// #define MOIST_PIN PINC
-// #define MOIST_BIT (1 << PC3)
-// #define MOIST_MUX ((1 << MUX1) | (1 << MUX0))
 
 static uint8_t early_init(void) {
     // save reset reason
@@ -77,13 +62,6 @@ static uint8_t early_init(void) {
     PORTC = 0;
     PORTD = 0;
 
-    // set moisture signal pin to Hi-Z
-    MOIST_PORT &= ~MOIST_BIT;
-    MOIST_DDR &= ~MOIST_BIT;
-
-    // power moisture sensor
-    MOISTVCC_DDR |= MOISTVCC_BIT;
-    MOISTVCC_PORT |= MOISTVCC_BIT;
 
     hx711_init();
 
@@ -91,140 +69,6 @@ static uint8_t early_init(void) {
     PRR = 0xFF;
 
     return mcusr;
-}
-
-ISR(ADC_vect) {
-    uint16_t val = 1024 - ADCW;
-
-    switch (ADMUX & 0xF) {
-    case MOIST_MUX:
-        twi_add_moisture(val);
-        break;
-    }
-}
-
-static void measure_water_level(void) {
-    freqcounter_start();
-
-    uint32_t t0 = get_time();
-    while (twi_get_cmd() == CMD_GET_WATER_LEVEL &&
-           get_time() - t0 < TIMER_MS(10000)) {
-    }
-    freqcounter_stop();
-
-    uint32_t l = twi_get_water_level();
-    uint16_t n = (uint16_t)(l >> 16);
-    uint16_t d = (uint16_t)(l & 0xFFFF);
-    printf("level: %u / %u = %u\n", n, d, (n + d / 2) / d);
-}
-
-static void measure_water_level_2(void) {
-    twi_reset_water_level();
-    freqcounter_start();
-    _delay_ms(4000);
-    freqcounter_stop();
-
-    uint32_t l = twi_get_water_level();
-    uint16_t n = (uint16_t)(l >> 16);
-    uint16_t d = (uint16_t)(l & 0xFFFF);
-    printf("level: %u / %u = %u\n", n, d, (n + d / 2) / d);
-    twi_reset_water_level();
-}
-
-static void start_moisture_measure(void) {
-    // power sensor
-    // MOISTVCC_PORT |= MOISTVCC_BIT;
-
-    // disable power reduction for ADC
-    PRR &= ~(1 << PRADC);
-
-    // AVCC and MOISTURE ADC pin
-    ADMUX = (1 << REFS0) | MOIST_MUX;
-
-    // free running mode
-    ADCSRB = 0;
-
-    // enable ADC
-    // auto trigger enabled
-    // clear interrupt flag
-    // enable interrupt
-    // with prescaler set to 1/128 = 62.5kHz
-    ADCSRA = (1 << ADEN) | (1 << ADATE) | (1 << ADIE) | 7;
-
-    // _delay_ms(1000);
-    // start ADC
-    ADCSRA |= (1 << ADSC);
-}
-
-static void stop_adc(void) {
-    // disable ADC
-    ADCSRA &= ~(1 << ADEN);
-    PRR |= (1 << PRADC);
-    // MOISTVCC_PORT &= ~MOISTVCC_BIT;
-}
-
-static void measure_moisture(void) {
-    // printf("s:\n");
-    // debug_finish();
-
-    start_moisture_measure();
-
-    uint32_t t0 = get_time();
-
-    uint8_t sreg = SREG;
-    cli();
-    set_sleep_mode(SLEEP_MODE_IDLE);
-    while (twi_get_cmd() == CMD_GET_MOISTURE &&
-           get_time() - t0 < TIMER_MS(1000)) {
-        sleep_enable();
-        sei();
-        sleep_cpu();
-        sleep_disable();
-    }
-
-    stop_adc();
-    SREG = sreg;
-
-    uint32_t t1 = get_time();
-    printf("measuring: %lu - %lu = %lu\n", t1, t0, t1 - t0);
-
-    // printf("moisture: %u\n", v);
-
-    uint32_t m = twi_get_moisture();
-    uint16_t n = (uint16_t)(m >> 16);
-    uint16_t d = (uint16_t)(m & 0xFFFF);
-    printf("moisture: %u / %u = %u\n", n, d, (n + d / 2) / d);
-}
-
-static void measure_moisture_2(void) {
-    // power sensor
-    // MOISTVCC_PORT |= MOISTVCC_BIT;
-
-    // disable power reduction for ADC
-    PRR &= ~(1 << PRADC);
-
-    // AVCC and MOISTURE ADC pin
-    ADMUX = (1 << REFS0) | MOIST_MUX;
-
-    // free running mode
-    ADCSRB = 0;
-
-    // enable ADC
-    // with prescaler set to 1/128 = 62.5kHz
-    ADCSRA = (1 << ADEN) | 7;
-
-    // start ADC
-    ADCSRA |= (1 << ADSC);
-
-    while ((ADCSRA & (1 << ADSC)) != 0)
-        ;
-
-    printf("moisture: %u\n", 1024 - ADCW);
-
-    // disable ADC
-    ADCSRA &= ~(1 << ADEN);
-    PRR |= (1 << PRADC);
-    // MOISTVCC_PORT &= ~MOISTVCC_BIT;
 }
 
 static void measure_weight(void) {
@@ -329,7 +173,6 @@ int main(void) {
     debug_init_trace();
 
     timer_start();
-    freqcounter_start();
     twi_slave_init(0x10);
 
     if ((mcusr & (PORF | BORF)) != 0) {
@@ -348,12 +191,6 @@ int main(void) {
             uint8_t cmd = twi_next_cmd();
             printf("command: %#x\n", cmd);
             switch (cmd) {
-            case CMD_GET_MOISTURE:
-                measure_moisture();
-                break;
-            case CMD_GET_WATER_LEVEL:
-                measure_water_level();
-                break;
             case CMD_GET_WEIGHT:
                 measure_weight();
                 break;
@@ -368,11 +205,7 @@ int main(void) {
             char c = debug_getchar();
             switch (c) {
             case 't': measure_timer(); break;
-            case 'm': measure_moisture_2(); break;
             case 'w': measure_weight_2(); break;
-            case 'f':
-                measure_water_level_2(); break;
-                break;
             }
         }
     }
