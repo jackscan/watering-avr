@@ -41,10 +41,11 @@ static struct {
     uint8_t buflen;
     uint8_t ptr;
     uint8_t cmd;
-    struct accu moisture;
-    struct accu weight;
-    uint8_t last_watering;
-    uint8_t watering;
+    struct {
+        struct accu weight;
+        uint8_t last_watering;
+        uint8_t watering;
+    } data[2];
     uint8_t state;
 } s_twi;
 
@@ -110,22 +111,23 @@ static void reset_accu(struct accu* a) {
     a->denominator = 0;
 }
 
-uint8_t twi_get_watering(void){
-    return s_twi.watering;
+uint8_t twi_get_watering(uint8_t index){
+    return s_twi.data[index].watering;
 }
 
-void twi_set_last_watering(uint8_t w){
-    s_twi.last_watering = w;
+void twi_set_last_watering(uint8_t index, uint8_t w){
+    s_twi.data[index].last_watering = w;
 }
 
-void twi_add_weight(uint16_t value) {
+void twi_add_weight(uint8_t index, uint16_t value) {
     LOCKI();
-    add_accu(&s_twi.weight, value);
+    add_accu(&s_twi.data[index].weight, value);
     UNLOCKI();
 }
 
-uint32_t twi_get_weight(void) {
-    return ((uint32_t)s_twi.weight.numerator << 16) | (uint32_t)s_twi.weight.denominator;
+uint32_t twi_get_weight(uint8_t index) {
+    return ((uint32_t)s_twi.data[index].weight.numerator << 16) |
+           (uint32_t)s_twi.data[index].weight.denominator;
 }
 
 bool twi_busy(void) {
@@ -211,17 +213,17 @@ static void reset_cmd(void) {
 }
 
 static void fill_buffer(void) {
-    switch (s_twi.cmd) {
+    switch (CMD_TYPE(s_twi.cmd)) {
     case CMD_GET_WEIGHT:
-        load_accu(&s_twi.weight, 1);
+        load_accu(&s_twi.data[CMD_INDEX(s_twi.cmd)].weight, 1);
         break;
     case CMD_WATERING:
     case CMD_GET_LAST_WATERING:
-        s_twi.buf[0] = s_twi.last_watering;
+        s_twi.buf[0] = s_twi.data[CMD_INDEX(s_twi.cmd)].last_watering;
         s_twi.buflen = 1;
         break;
     case CMD_GET_WATER_LIMIT:
-        s_twi.buf[0] = water_limit(MAX_WATER_TIME);
+        s_twi.buf[0] = water_limit(CMD_INDEX(s_twi.cmd), MAX_WATER_TIME);
         s_twi.buflen = 1;
     case CMD_ECHO:
         break;
@@ -235,14 +237,14 @@ static void handle_cmd(void) {
         s_twi.cmd = s_twi.buf[0];
         s_twi.state |= TWI_STATE_CMD_PENDING;
 
-        switch (s_twi.cmd) {
+        switch (CMD_TYPE(s_twi.cmd)) {
         case CMD_GET_WEIGHT:
-            reset_accu(&s_twi.weight);
+            reset_accu(&s_twi.data[CMD_INDEX(s_twi.cmd)].weight);
             break;
         case CMD_WATERING:
-            s_twi.last_watering = 0;
+            s_twi.data[CMD_INDEX(s_twi.cmd)].last_watering = 0;
             if (s_twi.buflen == 2) {
-                s_twi.watering = s_twi.buf[1];
+                s_twi.data[CMD_INDEX(s_twi.cmd)].watering = s_twi.buf[1];
             } else {
                 reset_cmd();
             }
