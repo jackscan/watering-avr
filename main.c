@@ -29,9 +29,22 @@
 #define CAPSENS_PORT PORTB
 #define CAPSENS_BIT (1 << PB0)
 
-#define WATERING_DDR DDRD
-#define WATERING_PORT PORTD
-#define WATERING_BIT (1 << PD3)
+#define WATERING1_DDR DDRD
+#define WATERING1_PORT PORTD
+#define WATERING1_BIT (1 << PD3)
+
+#define WATERING2_DDR DDRC
+#define WATERING2_PORT PORTC
+#define WATERING2_BIT (1 << PC3)
+
+static struct {
+    volatile uint8_t *ddr;
+    volatile uint8_t *port;
+    uint8_t bit;
+} watering_pin[2] = {
+    {.ddr = &WATERING1_DDR, .port = &WATERING1_PORT, .bit = WATERING1_BIT},
+    {.ddr = &WATERING2_DDR, .port = &WATERING2_PORT, .bit = WATERING2_BIT},
+};
 
 static EEMEM struct scale_calib eemem_scale_calib[2];
 
@@ -177,22 +190,17 @@ static void update_water_account(uint8_t index, uint8_t t) {
 static uint8_t water(uint8_t index, uint8_t t) {
     t = water_limit(index, t);
 
-    printf("watering %ums\n", (uint16_t)t * 250u);
-
-    if (index != 0) {
-        printf("watering not supported for index %d\n", index);
-        return 0;
-    }
+    printf("watering %u %ums\n", index, (uint16_t)t * 250u);
 
     wdt_enable(WDTO_500MS);
     uint32_t t0 = get_time();
-    WATERING_PORT |= WATERING_BIT;
+    *watering_pin[index].port |= watering_pin[index].bit;
     for (uint8_t i = 0; i < t; ++i) {
         _delay_ms(250);
         wdt_reset();
     }
     uint32_t t1 = get_time();
-    WATERING_PORT &= ~WATERING_BIT;
+    *watering_pin[index].port &= ~watering_pin[index].bit;
     wdt_disable();
 
     uint32_t f = (F_CPU / 4UL);
@@ -286,6 +294,8 @@ int main(void) {
                 case 'w': measure_weight_2(); break;
                 case '1': calib = 1; break;
                 case '2': calib = 2; break;
+                case 'a': water(0, 4); break;
+                case 'b': water(1, 4); break;
                 case 'u': hx711_write_calib(eemem_scale_calib); break;
                 }
             }
