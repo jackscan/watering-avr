@@ -137,23 +137,30 @@ static void measure_weight(void) {
 static void measure_weight_2(void) {
     printf("w1:\n");
     uint8_t i = 0;
+    const uint8_t count = 16;
+    uint32_t sum1 = 0;
     do {
-        uint16_t w = hx711_read();
-        if (++i < 10) {
+        uint32_t w = hx711_read32();
+        if (++i < count) {
             hx711_finish_read(HX711_CHANNEL_A_128);
         } else {
             hx711_finish_read(HX711_CHANNEL_B_32);
         }
-        printf("%u\n", w);
-    } while (i < 10);
+        printf("%lu\n", w);
+        sum1 += w;
+    } while (i < count);
+    printf("> %lu\n", (sum1 + count / 2) / count);
 
     printf("w2:\n");
-    for (uint8_t i = 0; i < 10; ++i) {
-        uint16_t w = hx711_read();
+    uint32_t sum2 = 0;
+    for (uint8_t i = 0; i < count; ++i) {
+        uint32_t w = hx711_read32();
         hx711_finish_read(HX711_CHANNEL_B_32);
-        printf("%u\n", w);
+        printf("%lu\n", w);
+        sum2 += w;
     }
     hx711_powerdown();
+    printf("> %lu\n", (sum2 + count / 2) / count);
 }
 
 static __attribute__ ((section (".noinit"))) struct {
