@@ -64,6 +64,10 @@ void hx711_calib(uint8_t index, uint32_t offset, uint32_t scale) {
     s_calib_data[index].scale = scale;
 }
 
+struct scale_calib *hx711_get_calib(void) {
+    return s_calib_data;
+}
+
 void hx711_write_calib(void *calib) {
     eeprom_write_block(s_calib_data, calib, sizeof s_calib_data);
 }

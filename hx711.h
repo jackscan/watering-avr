@@ -16,6 +16,7 @@ struct scale_calib {
 void hx711_init(const void *calib);
 void hx711_powerdown(void);
 void hx711_calib(uint8_t index, uint32_t offset, uint32_t scale);
+struct scale_calib *hx711_get_calib(void);
 void hx711_write_calib(void *calib);
 uint16_t hx711_read(void);
 uint32_t hx711_read32(void);

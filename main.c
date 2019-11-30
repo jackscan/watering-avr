@@ -228,6 +228,12 @@ static void measure_timer(void) {
     printf("expected: %lu\n", TIMER_MS(1000));
 }
 
+static void print_calib(void) {
+    struct scale_calib *c = hx711_get_calib();
+    printf("calib1: %lu %lu\n", c[0].offset, c[0].scale);
+    printf("calib2: %lu %lu\n", c[1].offset, c[1].scale);
+}
+
 int main(void) {
 
     uint8_t mcusr = early_init();
@@ -303,6 +309,7 @@ int main(void) {
                 case '2': calib = 2; break;
                 case 'a': water(0, 4); break;
                 case 'b': water(1, 4); break;
+                case 'p': print_calib(); break;
                 case 'u': hx711_write_calib(eemem_scale_calib); break;
                 }
             }
