@@ -18,4 +18,5 @@ void hx711_powerdown(void);
 void hx711_calib(uint8_t index, uint32_t offset, uint32_t scale);
 void hx711_write_calib(void *calib);
 uint16_t hx711_read(void);
+uint32_t hx711_read32(void);
 void hx711_finish_read(enum hx711_chan_gain);

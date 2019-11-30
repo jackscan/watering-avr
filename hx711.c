@@ -68,7 +68,7 @@ void hx711_write_calib(void *calib) {
     eeprom_write_block(s_calib_data, calib, sizeof s_calib_data);
 }
 
-uint16_t hx711_read(void) {
+uint32_t hx711_read32(void) {
     // power up
     SERIAL_PORT &= ~PD_SCK;
 
@@ -115,7 +115,11 @@ uint16_t hx711_read(void) {
         result >>= 3 + s_accuracy;
     }
 
-    return (uint16_t)result;
+    return result;
+}
+
+uint16_t hx711_read(void) {
+    return (uint16_t)hx711_read32();
 }
 
 void hx711_finish_read(enum hx711_chan_gain chan_gain) {
